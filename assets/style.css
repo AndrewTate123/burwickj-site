@@ -687,6 +687,36 @@ input, button { font-family: inherit; }
   z-index: 1;
 }
 
+/* ── Contact ── */
+.contact-section { background: var(--bg-alt); }
+
+.contact-intro {
+  font-size: 1.05rem;
+  color: var(--text-muted);
+  margin-bottom: 32px;
+  max-width: 480px;
+}
+
+.contact-email-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--accent);
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent);
+  padding: 16px 28px;
+  border-radius: var(--radius);
+  transition: background .2s, transform .15s, box-shadow .2s;
+}
+.contact-email-btn:hover {
+  background: var(--accent);
+  color: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(37,99,235,.3);
+}
+
 /* ── Footer ── */
 footer {
   background: var(--hero-bg);
