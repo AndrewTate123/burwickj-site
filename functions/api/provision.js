@@ -3,7 +3,7 @@ export async function onRequestPost(context) {
 
   const headers = {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': 'https://burwij.com',
+    'Access-Control-Allow-Origin': 'https://burwickj.com',
   };
 
   let body;
@@ -26,7 +26,7 @@ export async function onRequestPost(context) {
     return new Response(JSON.stringify({ error: 'A valid Gmail address is required.' }), { status: 400, headers });
   }
 
-  const email = `${prefix}@burwij.com`;
+  const email = `${prefix}@burwickj.com`;
 
   /* ── Call Cloudflare Email Routing API ── */
   let cfRes;
@@ -70,7 +70,7 @@ export async function onRequestOptions() {
   return new Response(null, {
     status: 204,
     headers: {
-      'Access-Control-Allow-Origin': 'https://burwij.com',
+      'Access-Control-Allow-Origin': 'https://burwickj.com',
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type',
     },
