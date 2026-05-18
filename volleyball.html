@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Volleyball Lineup Tracker</title>
+  <meta name="description" content="Interactive volleyball roster and rotation tracker. Enter jersey numbers and positions to generate serving order and court spots." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0a0a0f;
+      --panel: #12121a;
+      --panel-2: #1a1a25;
+      --border: #262635;
+      --text: #e8e8f0;
+      --muted: #8a8aa0;
+      --accent: #ff6b35;
+      --accent-2: #4dabf7;
+      --good: #51cf66;
+      --warn: #ffd43b;
+      --bad: #ff6b6b;
+    }
+    body {
+      font-family: 'Inter', -apple-system, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.5;
+      padding: 24px 20px 80px;
+    }
+    .container { max-width: 1280px; margin: 0 auto; }
+    header.page { margin-bottom: 28px; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 16px; }
+    header.page h1 { font-size: clamp(28px, 4vw, 42px); font-weight: 800; letter-spacing: -0.02em; }
+    header.page p { color: var(--muted); margin-top: 6px; max-width: 640px; }
+    .back-link { color: var(--muted); text-decoration: none; font-size: 14px; }
+    .back-link:hover { color: var(--accent-2); }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+    .panel h2 {
+      font-size: 16px;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 14px;
+      font-weight: 600;
+    }
+    .panel-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+    .panel-row h2 { margin-bottom: 0; }
+
+    /* Roster table */
+    table.roster {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    table.roster th, table.roster td {
+      border: 1px solid var(--border);
+      padding: 0;
+      text-align: left;
+    }
+    table.roster th {
+      background: var(--panel-2);
+      color: var(--muted);
+      font-weight: 500;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 8px 10px;
+    }
+    table.roster td input,
+    table.roster td select {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font: inherit;
+      padding: 9px 10px;
+      outline: none;
+    }
+    table.roster td select { appearance: none; cursor: pointer; }
+    table.roster tr:focus-within { background: rgba(77, 171, 247, 0.06); }
+    table.roster td.actions { text-align: center; width: 40px; }
+    table.roster button.remove {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px 8px;
+    }
+    table.roster button.remove:hover { color: var(--bad); }
+
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-weight: 600;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    .btn:hover { filter: brightness(1.1); }
+    .btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .btn.ghost:hover { background: var(--panel-2); }
+
+    /* Court */
+    .court-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+    .court {
+      width: 100%;
+      max-width: 360px;
+      aspect-ratio: 2 / 3;
+      background: linear-gradient(180deg, #c97b3a 0%, #b86a2e 100%);
+      border-radius: 8px;
+      position: relative;
+      display: grid;
+      grid-template-rows: 1fr 1fr;
+      padding: 8px;
+      gap: 8px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+    }
+    .court-half {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 6px;
+    }
+    .court-half.back { order: 2; }
+    .court-half.front {
+      order: 1;
+      border-bottom: 2px dashed rgba(255,255,255,0.5);
+      padding-bottom: 6px;
+    }
+    .spot {
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 6px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 6px 4px;
+      color: #fff;
+      min-height: 60px;
+    }
+    .spot.empty { background: rgba(0,0,0,0.15); border-style: dashed; }
+    .spot .pos-label { font-size: 10px; opacity: 0.7; text-transform: uppercase; letter-spacing: 0.06em; }
+    .spot .jersey { font-size: 22px; font-weight: 800; line-height: 1.1; }
+    .spot .role { font-size: 10px; opacity: 0.85; }
+    .spot.serving { background: rgba(81, 207, 102, 0.35); border-color: var(--good); }
+    .spot.serving .pos-label::before { content: "● "; color: var(--good); }
+    .net-label {
+      position: absolute;
+      top: 50%;
+      left: -32px;
+      transform: translateY(-50%) rotate(-90deg);
+      transform-origin: center;
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: 0.2em;
+    }
+
+    .court-controls { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; }
+    .rot-pill {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .rot-pill strong { color: var(--text); }
+
+    /* Lookup */
+    .lookup-row { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 16px; }
+    .lookup-row label { display: flex; flex-direction: column; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+    .lookup-row input, .lookup-row select {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 8px 10px;
+      border-radius: 6px;
+      font: inherit;
+      margin-top: 6px;
+      min-width: 110px;
+    }
+    .lookup-row select { cursor: pointer; }
+
+    .result-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .result-card {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .result-card .label { font-size: 11px; text-transform: uppercase; color: var(--muted); letter-spacing: 0.05em; }
+    .result-card .value { font-size: 18px; font-weight: 700; margin-top: 4px; }
+    .result-card.wide { grid-column: 1 / -1; }
+    .result-card .note { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+    /* Lineup grid: all 6 rotations */
+    .rotations-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .mini-court {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+    }
+    .mini-court h3 { font-size: 13px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; }
+    .mini-court h3 .server-tag { font-size: 10px; color: var(--good); background: rgba(81, 207, 102, 0.15); padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+    .mini-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 4px;
+      font-size: 11px;
+    }
+    .mini-spot {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px 4px;
+      text-align: center;
+    }
+    .mini-spot .num { font-size: 14px; font-weight: 700; }
+    .mini-spot .lbl { font-size: 9px; color: var(--muted); text-transform: uppercase; }
+    .mini-spot.empty .num { color: var(--muted); }
+    .mini-spot.serving { background: rgba(81, 207, 102, 0.12); border-color: var(--good); }
+    .mini-divider { grid-column: 1 / -1; height: 1px; background: var(--border); margin: 2px 0; }
+
+    .empty-state { color: var(--muted); font-size: 13px; padding: 20px; text-align: center; }
+    .footer-note { color: var(--muted); font-size: 12px; margin-top: 24px; text-align: center; }
+    .add-row-btn { width: 100%; margin-top: 10px; padding: 10px; background: transparent; border: 1px dashed var(--border); color: var(--muted); border-radius: 6px; cursor: pointer; font: inherit; }
+    .add-row-btn:hover { border-color: var(--accent); color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header class="page">
+      <div>
+        <h1>Volleyball Lineup Tracker</h1>
+        <p>Enter your roster, set the starting rotation, and the sheet computes serving order, court spots, and front/back row for every rotation.</p>
+      </div>
+      <a href="/" class="back-link">← back</a>
+    </header>
+
+    <div class="grid">
+      <!-- ROSTER -->
+      <div class="panel">
+        <div class="panel-row">
+          <h2>Roster</h2>
+          <div style="display:flex; gap:8px;">
+            <button class="btn ghost" id="loadSample">Load sample</button>
+            <button class="btn ghost" id="clearAll">Clear</button>
+          </div>
+        </div>
+        <table class="roster">
+          <thead>
+            <tr>
+              <th style="width: 70px;">#</th>
+              <th>Name</th>
+              <th style="width: 130px;">Position</th>
+              <th style="width: 90px;">Start Rot.</th>
+              <th class="actions"></th>
+            </tr>
+          </thead>
+          <tbody id="rosterBody"></tbody>
+        </table>
+        <button class="add-row-btn" id="addRow">+ Add player</button>
+        <p class="footer-note" style="text-align:left; margin-top: 12px;">Start Rot. 1–6 places that player on the court (1 = right back / serving spot). Leave blank for bench. Saved to your browser automatically.</p>
+      </div>
+
+      <!-- COURT VIEW -->
+      <div class="panel">
+        <div class="panel-row">
+          <h2>Current Rotation</h2>
+          <div class="court-controls">
+            <button class="btn ghost" id="prevRot">◀</button>
+            <span class="rot-pill">Rot <strong id="curRotLabel">1</strong> / 6</span>
+            <button class="btn ghost" id="nextRot">▶</button>
+          </div>
+        </div>
+        <div class="court-wrap">
+          <div class="court" id="court">
+            <span class="net-label">NET</span>
+            <div class="court-half front">
+              <div class="spot" data-pos="4"><span class="pos-label">P4 LF</span></div>
+              <div class="spot" data-pos="3"><span class="pos-label">P3 MF</span></div>
+              <div class="spot" data-pos="2"><span class="pos-label">P2 RF</span></div>
+            </div>
+            <div class="court-half back">
+              <div class="spot" data-pos="5"><span class="pos-label">P5 LB</span></div>
+              <div class="spot" data-pos="6"><span class="pos-label">P6 MB</span></div>
+              <div class="spot" data-pos="1"><span class="pos-label">P1 RB ★</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOOKUP -->
+      <div class="panel">
+        <h2>Player Lookup</h2>
+        <div class="lookup-row">
+          <label>Jersey #
+            <input type="number" id="lookupNum" min="0" max="99" placeholder="e.g. 7" />
+          </label>
+          <label>Or pick
+            <select id="lookupSelect"><option value="">— choose —</option></select>
+          </label>
+          <label>For rotation
+            <select id="lookupRot">
+              <option value="current">Current</option>
+              <option value="1">Rot 1</option><option value="2">Rot 2</option><option value="3">Rot 3</option>
+              <option value="4">Rot 4</option><option value="5">Rot 5</option><option value="6">Rot 6</option>
+            </select>
+          </label>
+        </div>
+        <div class="result-grid" id="lookupResults">
+          <div class="result-card wide empty-state">Pick a jersey number to see their court spot and role for the selected rotation.</div>
+        </div>
+      </div>
+
+      <!-- ALL ROTATIONS -->
+      <div class="panel">
+        <h2>All 6 Rotations</h2>
+        <div class="rotations-grid" id="rotationsGrid"></div>
+      </div>
+    </div>
+
+    <p class="footer-note">Volleyball rotation: server is at position 1 (right back). When the team sides-out, everyone rotates clockwise one spot. ★ = serving.</p>
+  </div>
+
+  <script>
+    const POSITIONS = [
+      { code: 'S',   name: 'Setter' },
+      { code: 'OH',  name: 'Outside Hitter' },
+      { code: 'OPP', name: 'Opposite' },
+      { code: 'MB',  name: 'Middle Blocker' },
+      { code: 'L',   name: 'Libero' },
+      { code: 'DS',  name: 'Defensive Specialist' },
+    ];
+
+    // Court layout: positions 1-6 with row/col
+    // Front row: P4 (LF), P3 (MF), P2 (RF)
+    // Back row:  P5 (LB), P6 (MB), P1 (RB) -- server
+    const POSITION_INFO = {
+      1: { name: 'Right Back',   short: 'RB', row: 'Back',  serves: true },
+      2: { name: 'Right Front',  short: 'RF', row: 'Front', serves: false },
+      3: { name: 'Middle Front', short: 'MF', row: 'Front', serves: false },
+      4: { name: 'Left Front',   short: 'LF', row: 'Front', serves: false },
+      5: { name: 'Left Back',    short: 'LB', row: 'Back',  serves: false },
+      6: { name: 'Middle Back',  short: 'MB', row: 'Back',  serves: false },
+    };
+
+    const STORAGE_KEY = 'vb-roster-v1';
+    let roster = []; // { id, num, name, pos, startRot }
+    let currentRot = 1;
+
+    function uid() { return Math.random().toString(36).slice(2, 9); }
+
+    function load() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) roster = JSON.parse(raw);
+      } catch(e) {}
+      if (!roster.length) {
+        roster = [emptyPlayer()];
+      }
+    }
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(roster));
+    }
+    function emptyPlayer() {
+      return { id: uid(), num: '', name: '', pos: '', startRot: '' };
+    }
+
+    function loadSample() {
+      roster = [
+        { id: uid(), num: 1,  name: 'Alex',   pos: 'S',   startRot: 1 },
+        { id: uid(), num: 7,  name: 'Bailey', pos: 'OH',  startRot: 2 },
+        { id: uid(), num: 12, name: 'Casey',  pos: 'MB',  startRot: 3 },
+        { id: uid(), num: 4,  name: 'Devon',  pos: 'OPP', startRot: 4 },
+        { id: uid(), num: 9,  name: 'Erin',   pos: 'OH',  startRot: 5 },
+        { id: uid(), num: 15, name: 'Frankie',pos: 'MB',  startRot: 6 },
+        { id: uid(), num: 3,  name: 'Gray',   pos: 'L',   startRot: '' },
+      ];
+      save(); renderAll();
+    }
+
+    /* ---- Rotation math ----
+       startRot = where player begins when team is in Rotation 1.
+       After N rotations (clockwise), a player's current court position is:
+         currentPos = ((startRot - 1 - (rot - 1) + 6) % 6) + 1
+       Because: rotation 2 means the team rotated once, so the player who was at
+       position 2 is now at position 1 (they rotated from 2 → 1 → 6 → 5 → 4 → 3).
+       Clockwise rotation: 2 → 1, 3 → 2, 4 → 3, 5 → 4, 6 → 5, 1 → 6.
+    */
+    function courtPosFor(startRot, rot) {
+      if (!startRot) return null;
+      return ((startRot - 1 - (rot - 1) + 6) % 6) + 1;
+    }
+
+    function playersOnCourt(rot) {
+      const spots = {1:null,2:null,3:null,4:null,5:null,6:null};
+      roster.forEach(p => {
+        if (!p.startRot) return;
+        const cp = courtPosFor(Number(p.startRot), rot);
+        if (cp) spots[cp] = p;
+      });
+      return spots;
+    }
+
+    /* ---- Render: Roster table ---- */
+    function renderRoster() {
+      const body = document.getElementById('rosterBody');
+      body.innerHTML = '';
+      const usedRots = new Set(roster.filter(p => p.startRot).map(p => Number(p.startRot)));
+      roster.forEach((p, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td><input type="number" min="0" max="99" data-id="${p.id}" data-field="num" value="${p.num ?? ''}" placeholder="#" /></td>
+          <td><input type="text" data-id="${p.id}" data-field="name" value="${escapeHtml(p.name || '')}" placeholder="Name" /></td>
+          <td>
+            <select data-id="${p.id}" data-field="pos">
+              <option value="">—</option>
+              ${POSITIONS.map(o => `<option value="${o.code}" ${p.pos===o.code?'selected':''}>${o.code} · ${o.name}</option>`).join('')}
+            </select>
+          </td>
+          <td>
+            <select data-id="${p.id}" data-field="startRot">
+              <option value="">Bench</option>
+              ${[1,2,3,4,5,6].map(r => {
+                const taken = usedRots.has(r) && Number(p.startRot) !== r;
+                return `<option value="${r}" ${Number(p.startRot)===r?'selected':''} ${taken?'disabled':''}>${r}${taken?' (taken)':''}</option>`;
+              }).join('')}
+            </select>
+          </td>
+          <td class="actions"><button class="remove" data-remove="${p.id}" title="Remove">✕</button></td>
+        `;
+        body.appendChild(tr);
+      });
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    }
+
+    /* ---- Render: Court ---- */
+    function renderCourt() {
+      document.getElementById('curRotLabel').textContent = currentRot;
+      const spots = playersOnCourt(currentRot);
+      document.querySelectorAll('#court .spot').forEach(el => {
+        const pos = Number(el.dataset.pos);
+        const p = spots[pos];
+        const info = POSITION_INFO[pos];
+        el.classList.toggle('serving', pos === 1);
+        el.classList.toggle('empty', !p);
+        const star = pos === 1 ? ' ★' : '';
+        el.innerHTML = `
+          <span class="pos-label">P${pos} ${info.short}${star}</span>
+          <span class="jersey">${p ? '#' + p.num : '—'}</span>
+          <span class="role">${p ? (p.name || POSITIONS.find(x=>x.code===p.pos)?.name || '') : ''}</span>
+        `;
+      });
+    }
+
+    /* ---- Render: Lookup dropdown ---- */
+    function renderLookupSelect() {
+      const sel = document.getElementById('lookupSelect');
+      const current = sel.value;
+      sel.innerHTML = '<option value="">— choose —</option>' +
+        roster
+          .filter(p => p.num !== '' && p.num != null)
+          .map(p => `<option value="${p.id}">#${p.num}${p.name?' '+escapeHtml(p.name):''}${p.pos?' ('+p.pos+')':''}</option>`)
+          .join('');
+      sel.value = current;
+    }
+
+    /* ---- Render: Lookup results ---- */
+    function renderLookup() {
+      const numInput = document.getElementById('lookupNum').value;
+      const selVal = document.getElementById('lookupSelect').value;
+      const rotChoice = document.getElementById('lookupRot').value;
+      const rot = rotChoice === 'current' ? currentRot : Number(rotChoice);
+
+      let player = null;
+      if (selVal) player = roster.find(p => p.id === selVal);
+      else if (numInput !== '') player = roster.find(p => String(p.num) === String(numInput));
+
+      const box = document.getElementById('lookupResults');
+      if (!player) {
+        box.innerHTML = '<div class="result-card wide empty-state">Pick a jersey number to see their court spot and role for the selected rotation.</div>';
+        return;
+      }
+      if (!player.startRot) {
+        box.innerHTML = `
+          <div class="result-card wide">
+            <div class="label">Player</div>
+            <div class="value">#${player.num} ${escapeHtml(player.name||'')}</div>
+            <div class="note">On the bench — assign a Start Rot. in the roster to see court info.</div>
+          </div>`;
+        return;
+      }
+
+      const cp = courtPosFor(Number(player.startRot), rot);
+      const info = POSITION_INFO[cp];
+      const posMeta = POSITIONS.find(x => x.code === player.pos);
+      const isServer = cp === 1;
+      const isLibero = player.pos === 'L';
+
+      // Serving order: the player serves first in the rotation in which they sit at position 1.
+      // That rotation number = startRot (since rot=startRot puts them at P1).
+      const servesInRot = Number(player.startRot);
+      const liberoNote = isLibero && info.row === 'Front'
+        ? 'Libero cannot legally play in the front row — sub out for the middle.'
+        : '';
+
+      box.innerHTML = `
+        <div class="result-card wide">
+          <div class="label">Player</div>
+          <div class="value">#${player.num} ${escapeHtml(player.name||'')} <span style="color:var(--muted); font-weight:500; font-size:14px;">${posMeta?'· '+posMeta.name:''}</span></div>
+        </div>
+        <div class="result-card">
+          <div class="label">Court spot (Rot ${rot})</div>
+          <div class="value">P${cp} · ${info.short}</div>
+          <div class="note">${info.name}</div>
+        </div>
+        <div class="result-card">
+          <div class="label">Row</div>
+          <div class="value">${info.row} ${info.row==='Front'?'(can attack/block)':'(back-row attack only)'}</div>
+        </div>
+        <div class="result-card">
+          <div class="label">Serving?</div>
+          <div class="value" style="color:${isServer?'var(--good)':'var(--text)'}">${isServer ? 'Yes — serving now' : 'No'}</div>
+          <div class="note">Serves first in Rotation ${servesInRot}</div>
+        </div>
+        <div class="result-card">
+          <div class="label">Role assignment</div>
+          <div class="value">${posMeta ? posMeta.code : '—'}</div>
+          <div class="note">${liberoNote || (posMeta ? posMeta.name : 'No position set')}</div>
+        </div>
+      `;
+    }
+
+    /* ---- Render: All rotations grid ---- */
+    function renderRotationsGrid() {
+      const grid = document.getElementById('rotationsGrid');
+      grid.innerHTML = '';
+      for (let r = 1; r <= 6; r++) {
+        const spots = playersOnCourt(r);
+        const server = spots[1];
+        const card = document.createElement('div');
+        card.className = 'mini-court';
+        card.innerHTML = `
+          <h3>Rotation ${r} <span class="server-tag">Server: ${server ? '#'+server.num : '—'}</span></h3>
+          <div class="mini-grid">
+            ${[4,3,2].map(pos => miniSpot(pos, spots[pos])).join('')}
+            <div class="mini-divider"></div>
+            ${[5,6,1].map(pos => miniSpot(pos, spots[pos])).join('')}
+          </div>
+        `;
+        grid.appendChild(card);
+      }
+    }
+    function miniSpot(pos, p) {
+      const info = POSITION_INFO[pos];
+      const cls = (pos === 1 ? 'serving' : '') + (p ? '' : ' empty');
+      return `<div class="mini-spot ${cls}">
+        <div class="lbl">P${pos} ${info.short}${pos===1?' ★':''}</div>
+        <div class="num">${p ? '#'+p.num : '—'}</div>
+        <div class="lbl">${p ? (p.pos || '') : ''}</div>
+      </div>`;
+    }
+
+    function renderAll() {
+      renderRoster();
+      renderCourt();
+      renderLookupSelect();
+      renderLookup();
+      renderRotationsGrid();
+    }
+
+    /* ---- Events ---- */
+    document.getElementById('rosterBody').addEventListener('input', e => {
+      const t = e.target;
+      const id = t.dataset.id, field = t.dataset.field;
+      if (!id || !field) return;
+      const p = roster.find(x => x.id === id);
+      if (!p) return;
+      let v = t.value;
+      if (field === 'num') v = v === '' ? '' : Math.max(0, Math.min(99, Number(v)));
+      if (field === 'startRot') {
+        // Enforce uniqueness: clear other player who had this slot
+        if (v !== '') {
+          const n = Number(v);
+          roster.forEach(other => { if (other.id !== id && Number(other.startRot) === n) other.startRot = ''; });
+        }
+        v = v === '' ? '' : Number(v);
+      }
+      p[field] = v;
+      save();
+      renderAll();
+    });
+    document.getElementById('rosterBody').addEventListener('click', e => {
+      const rm = e.target.closest('[data-remove]');
+      if (rm) {
+        roster = roster.filter(p => p.id !== rm.dataset.remove);
+        if (!roster.length) roster.push(emptyPlayer());
+        save(); renderAll();
+      }
+    });
+    document.getElementById('addRow').onclick = () => { roster.push(emptyPlayer()); save(); renderAll(); };
+    document.getElementById('clearAll').onclick = () => {
+      if (!confirm('Clear the entire roster?')) return;
+      roster = [emptyPlayer()];
+      save(); renderAll();
+    };
+    document.getElementById('loadSample').onclick = loadSample;
+    document.getElementById('prevRot').onclick = () => { currentRot = currentRot === 1 ? 6 : currentRot - 1; renderCourt(); renderLookup(); };
+    document.getElementById('nextRot').onclick = () => { currentRot = currentRot === 6 ? 1 : currentRot + 1; renderCourt(); renderLookup(); };
+    document.getElementById('lookupNum').addEventListener('input', () => { document.getElementById('lookupSelect').value = ''; renderLookup(); });
+    document.getElementById('lookupSelect').addEventListener('change', () => { document.getElementById('lookupNum').value = ''; renderLookup(); });
+    document.getElementById('lookupRot').addEventListener('change', renderLookup);
+
+    load();
+    renderAll();
+  </script>
+</body>
+</html>
